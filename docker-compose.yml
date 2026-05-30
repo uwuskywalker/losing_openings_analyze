@@ -1,0 +1,10 @@
+services:
+  web:
+    build: .
+    containerName": "Final_Project for_Programming_Class
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/code
+    environment:
+      - ENV=development
