@@ -1,6 +1,8 @@
 // frontend/src/App.tsx
 import { useState } from 'react';
 import FetcherForm from './components/FetcherForm';
+import ChessLogo from './assets/Chesscom.webp';
+import LichessLogo from './assets/lichess.webp';
 
 export default function App() {
   const [source, setSource] = useState<'chess.com' | 'lichess'>('chess.com');
@@ -22,9 +24,16 @@ export default function App() {
         alignItems: 'center'
     }}>
       
-      <div>
-        <button onClick={() => setSource('chess.com')}>Chess.com</button>
-        <button onClick={() => setSource('lichess')} style={{ marginLeft: '10px' }}>Lichess</button>
+      <div style={{ display: 'flex', gap: '10px' }}>
+      <button onClick={() => setSource('chess.com')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <img src={ChessLogo} alt="Chess.com" style={{ width: '20px', height: '20px' }} />
+        Chess.com
+      </button>
+
+      <button onClick={() => setSource('lichess')} style={{ marginLeft: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <img src={LichessLogo} alt="Lichess" style={{ width: '20px', height: '20px' }} />
+        Lichess
+      </button>
       </div>
 
       <FetcherForm onFetch={handleFetch} />
