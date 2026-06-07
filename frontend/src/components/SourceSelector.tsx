@@ -1,5 +1,3 @@
-import React from 'react';
-
 type Source = 'chess.com' | 'lichess';
 
 interface Props {
