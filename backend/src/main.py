@@ -46,16 +46,16 @@ def fetch_games():
     try:
         if source == 'chess.com':
             archives_url = f"https://api.chess.com/pub/player/{username}/games/archives"
-            # 1. 先抓取月份列表
             res = requests.get(archives_url, headers={'User-Agent': 'ChessFetcherApp'}).json()
-            # 2. 為了範例，我們只抓最後一個月 (通常是最新)
-            latest_month_url = res['archives'][-1]
-            games_res = requests.get(latest_month_url, headers={'User-Agent': 'ChessFetcherApp'}).json()
-            # 3. 轉換
-            formatted_data = [parse_chess_com(g, username) for g in games_res['games']]
-            
+            all_archives = res.get('archives', [])
+            recent_months = all_archives[-5:]
+            all_games = []
+            for url in recent_months:
+                month_data = requests.get(url, headers={'User-Agent': 'ChessFetcherApp'}).json().get('games', [])
+                all_games.extend(month_data)    
+            formatted_data = [parse_chess_com(g, username) for g in all_games[::-1]]
         elif source == 'lichess':
-            url = f"https://lichess.org/api/games/user/{username}?max=10"
+            url = f"https://lichess.org/api/games/user/{username}?max=100"
             # Lichess 回傳的是 NDJSON，需要按行讀取
             response = requests.get(url, headers={'Accept': 'application/x-ndjson'})
             lines = response.text.strip().split('\n')
