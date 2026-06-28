@@ -7,8 +7,12 @@ services:
     volumes:
       - .:/code
     environment:
-      - ENV=development
-  
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT=${DB_PORT}
+      - DB_HOST=${DB_HOST}
+
   frontend:
     build: .
     ports:
@@ -17,3 +21,15 @@ services:
     - ./frontend:/code
     working_dir: /code
     command: npm run dev -- --host 0.0.0.0
+
+    db:
+    image: postgres:18
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5742:5742"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
