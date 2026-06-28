@@ -58,14 +58,19 @@ export function MatchHistory({ username, source }: { username: string, source: s
         <h3>最近對局</h3>
         <table>
           <thead>
-            <tr><th>日期</th><th>模式</th><th>ECO</th><th>結果</th></tr>
+            <tr><th>日期</th><th>模式</th><th>ECO / 開局</th><th>結果</th></tr>
           </thead>
           <tbody>
             {data?.recent_games?.map((game, index) => (
               <tr key={index} style={{ color: game.result === 'win' ? 'green' : 'red' }}>
                 <td>{game.date}</td>
                 <td>{game.mode}</td>
-                <td>{game.eco || 'N/A'}</td>
+                <td>
+                  <div>{game.eco || 'N/A'}</div>
+                  <div style={{ fontSize: '0.85em', color: '#ccc' }}>
+                    {game.opening_name || '未知開局'}
+                  </div>
+                </td>
                 <td>{game.result}</td>
               </tr>
             ))}

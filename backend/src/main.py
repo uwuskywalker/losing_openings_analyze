@@ -1,6 +1,11 @@
 import os
+import sys
+from pathlib import Path
+
 import psycopg2
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from factory import get_platform
 
 app = Flask(__name__)
