@@ -45,7 +45,7 @@ export function MatchHistory({ username, source }: { username: string, source: s
       <section>
         <h3>開局盲點分析 (近期最常輸)</h3>
         <ul>
-          {data.top_blind_spots.map((spot, index) => (
+          {data?.top_blind_spots?.map((spot, index) => (
             <li key={index}>
               {spot.eco} - {spot.opening_name}: 輸了 {spot.loss_count} 場
             </li>
@@ -61,7 +61,7 @@ export function MatchHistory({ username, source }: { username: string, source: s
             <tr><th>日期</th><th>模式</th><th>ECO</th><th>結果</th></tr>
           </thead>
           <tbody>
-            {data.recent_games.map((game, index) => (
+            {data?.recent_games?.map((game, index) => (
               <tr key={index} style={{ color: game.result === 'win' ? 'green' : 'red' }}>
                 <td>{game.date}</td>
                 <td>{game.mode}</td>
