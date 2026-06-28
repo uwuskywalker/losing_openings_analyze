@@ -1,28 +1,37 @@
-version: '3.8'
 services:
   web:
-    build: .
+    build:
+      context: .
+      target: dev
     ports:
       - "5000:5000"
     volumes:
       - .:/code
+    working_dir: /code
     environment:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_PORT=${DB_PORT}
       - DB_HOST=${DB_HOST}
+    depends_on:
+      - db
+    stdin_open: true
+    tty: true
+    entrypoint: /bin/bash
 
   frontend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
     ports:
       - "5173:5173"
     volumes:
-    - ./frontend:/code
+      - ./frontend:/code
     working_dir: /code
     command: npm run dev -- --host 0.0.0.0
 
-    db:
+  db:
     image: postgres:18
     container_name: postgres_db
     environment:
@@ -30,6 +39,9 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5742:5742"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

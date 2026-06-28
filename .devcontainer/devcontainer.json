@@ -1,15 +1,19 @@
 {
-	"name": "Final_Project for_Programming_Class",
-	"build": {
-		"dockerfile": "../dockerfile",
-		"target": "dev"
-	},
-	"postCreateCommand": "cd frontend && npm install && cd ..",
-	
-	"features": {
-		"ghcr.io/devcontainers/features/git:1": {},
-		"ghcr.io/devcontainers/features/node:1": {}
-	},
+    "name": "Final_Project for_Programming_Class",
+
+    "dockerComposeFile": "../docker-compose.yml",
+    
+    "service": "web",
+
+    "workspaceFolder": "/code",
+    
+    "overrideCommand": false,
+
+    "postCreateCommand": "cd frontend && npm install && cd ..",
+    
+    "features": {
+        "ghcr.io/devcontainers/features/git:1": {}
+    },
 	
 	"customizations": {
 		"vscode": {

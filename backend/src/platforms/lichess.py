@@ -50,7 +50,7 @@ class LichessPlatform(ChessPlatform):
         blind_spots = []
         try:
             conn = psycopg2.connect(
-                dbname=os.getenv("DB_NAME"),  # <--- 確保是你的資料庫名稱
+                dbname=os.getenv("DB_NAME")
                 user=os.getenv("DB_USER"),
                 password=os.getenv("DB_PASS"),
                 host=os.getenv("DB_HOST"),

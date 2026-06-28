@@ -29,6 +29,7 @@ RUN chmod +x docker-entrypoint.sh
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 FROM python:3.13.5-slim AS dev
+RUN apt-get update && apt-get install -y git && apt-get clean && rm -rf /var/lib/apt/lists/*
 WORKDIR /code
 COPY requirements.txt ./
 # Install uv and create virtual environment using uv for dev
@@ -41,3 +42,4 @@ ENV PYTHONDONTWRITEBYTECODE=1
 RUN uv pip install --upgrade pip
 RUN uv pip install --no-cache-dir -r requirements.txt
 COPY . .
+CMD ["/bin/bash"]
