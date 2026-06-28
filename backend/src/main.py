@@ -1,7 +1,14 @@
+import os
+import psycopg2
 from flask import Flask, request, jsonify
 from factory import get_platform
 
 app = Flask(__name__)
+
+def get_db_connection():
+    url = os.environ.get('DATABASE_URL')
+    conn = psycopg2.connect(url, sslmode='require')
+    return conn
 
 @app.route('/api/fetch-games', methods=['GET'])
 def fetch_games():

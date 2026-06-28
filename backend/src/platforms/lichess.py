@@ -21,13 +21,34 @@ class LichessPlatform(ChessPlatform):
             result = "loss"
 
         created_at = data.get("createdAt", 0)
+    
+        pgn_moves_str = ""
+        pgn_string = data.get("pgn") # 拿到 Lichess 包在 JSON 裡的 pgn 字串
+        
+        if pgn_string:
+            try:
+                # 使用 io.StringIO 把字串轉成檔案流，交給 chess.pgn 讀取
+                pgn_file = io.StringIO(pgn_string)
+                parsed_game = chess.pgn.read_game(pgn_file)
+                
+                if parsed_game:
+                    # 提取出標準的走子順序（例如: "1. e4 e5 2. Nf3 Nc6..."）
+                    # 這裡使用 main.line_moves() 可以拿到每一著，並串成標準記譜字串
+                    moves = [move.uci() for move in parsed_game.mainline_moves()] # 拿到 UCI 格式 (例如 e2e4)
+                    # 如果想要標準 SAN 格式 (例如 e4, Nf3)，可以用 parsed_game.mainline() 的印出
+                    pgn_moves_str = str(parsed_game.mainline()) 
+            except Exception as pgn_err:
+                print(f"解析 PGN 失敗: {pgn_err}")
+                pgn_moves_str = "棋譜解析錯誤"
+
         return {
             "username": self.username,
             "rating": data.get("players", {}).get(player_color, {}).get("rating"),
             "date": datetime.fromtimestamp(created_at / 1000).strftime('%Y-%m-%d') if created_at else "N/A",
             "result": result,
             "mode": data.get("speed"),
-            "eco": data.get("opening", {}).get("eco")  # <--- 順便把這局的 ECO 代碼撈出來
+            "eco": data.get("opening", {}).get("eco"),
+            "moves": pgn_moves_str
         }
 
     def fetch_games(self):
@@ -86,3 +107,19 @@ class LichessPlatform(ChessPlatform):
             "recent_games": games_list,      # 你原本前端要的 100 場陣列
             "top_blind_spots": blind_spots   # 新增的資料庫盲點分析報告
         }
+    
+    def get_opening_name(cursor, eco, moves_str):
+    # 1. 優先嘗試用 ECO 代碼查詢
+        if eco:
+            cursor.execute("SELECT name FROM lichess_openings WHERE eco = %s LIMIT 1;", (eco.upper(),))
+            result = cursor.fetchone()
+            if result: return result[0]
+
+        # 2. 如果 ECO 為空，則嘗試用 PGN 棋譜的前幾步進行模糊比對
+        prefix_moves = " ".join(moves_str.split()[:6]) 
+        
+        # 使用 LIKE 模糊匹配資料庫中的開局走法欄位
+        cursor.execute("SELECT name FROM lichess_openings WHERE moves LIKE %s LIMIT 1;", (f"{prefix_moves}%",))
+        result = cursor.fetchone()
+    
+        return result[0] if result else "未知開局"
