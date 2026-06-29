@@ -43,7 +43,7 @@ export function MatchHistory({ username, source }: { username: string, source: s
     <div>
       {/* 2. 顯示盲點報告 */}
       <section>
-        <h3>開局盲點分析 (近期最常輸)</h3>
+        <h3>常輸開局分析</h3>
         <ul>
           {data?.top_blind_spots?.map((spot, index) => (
             <li key={index}>
