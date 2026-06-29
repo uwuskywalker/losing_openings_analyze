@@ -5,17 +5,22 @@ export default function FetcherForm({ onFetch }: { onFetch: (username: string) =
   const [username, setUsername] = useState('');
 
   return (
-    <div style={{ marginTop: '20px' }}>
+    <div className="search-panel">
       <input
+        className="search-input"
         type="text"
         placeholder="請輸入棋手名稱..."
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        style={{ padding: '8px', width: '200px' }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            onFetch(username);
+          }
+        }}
       />
-      <button 
+      <button
+        className="search-button"
         onClick={() => onFetch(username)}
-        style={{ padding: '8px 15px', marginLeft: '10px', cursor: 'pointer' }}
       >
         搜尋對局
       </button>

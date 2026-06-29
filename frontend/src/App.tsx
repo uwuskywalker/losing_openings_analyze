@@ -1,5 +1,6 @@
 // frontend/src/App.tsx
 import { useState } from 'react';
+import './App.css';
 import FetcherForm from './components/FetcherForm';
 import { MatchHistory } from './components/MatchHistory';
 import ChessLogo from './assets/Chesscom.webp';
@@ -15,37 +16,33 @@ export default function App() {
   };
 
   return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '50px', 
-        backgroundColor: '#222', 
-        color: '#fff', 
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center'
-    }}>
-      
-      <div style={{ display: 'flex', gap: '10px' }}>
-      <button onClick={() => setSource('chess.com')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <img src={ChessLogo} alt="Chess.com" style={{ width: '20px', height: '20px' }} />
-        Chess.com
-      </button>
+    <div className="app-shell">
+      <div className="source-toggle">
+        <button
+          className={`source-btn ${source === 'chess.com' ? 'active' : ''}`}
+          onClick={() => setSource('chess.com')}
+        >
+          <img src={ChessLogo} alt="Chess.com" className="source-icon" />
+          <span>Chess.com</span>
+        </button>
 
-      <button onClick={() => setSource('lichess')} style={{ marginLeft: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <img src={LichessLogo} alt="Lichess" style={{ width: '20px', height: '20px' }} />
-        Lichess
-      </button>
+        <button
+          className={`source-btn ${source === 'lichess' ? 'active' : ''}`}
+          onClick={() => setSource('lichess')}
+        >
+          <img src={LichessLogo} alt="Lichess" className="source-icon" />
+          <span>Lichess</span>
+        </button>
       </div>
 
       <FetcherForm onFetch={handleFetch} />
-      
+
       {/* 只有當搜尋參數存在時，才渲染 MatchHistory */}
       {searchParams && (
-        <div style={{ marginTop: '30px', width: '100%', maxWidth: '800px' }}>
-          <MatchHistory 
-            username={searchParams.username} 
-            source={searchParams.source} 
+        <div className="results-panel">
+          <MatchHistory
+            username={searchParams.username}
+            source={searchParams.source}
           />
         </div>
       )}
