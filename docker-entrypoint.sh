@@ -1,2 +1,2 @@
 #!/bin/sh
-exec python /code/backend/src/main.py
+exec /opt/venv/bin/python /code/backend/src/main.py

@@ -3,17 +3,35 @@ import sys
 from pathlib import Path
 
 import psycopg2
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from factory import get_platform
 
-app = Flask(__name__)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+STATIC_DIR = BASE_DIR / "static"
+
+app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="")
 
 def get_db_connection():
     url = os.environ.get('DATABASE_URL')
     conn = psycopg2.connect(url, sslmode='require')
     return conn
+
+@app.route('/')
+def index():
+    if (STATIC_DIR / 'index.html').exists():
+        return send_from_directory(str(STATIC_DIR), 'index.html')
+    return jsonify({"message": "backend is running"})
+
+@app.route('/<path:path>')
+def serve_frontend(path):
+    full_path = STATIC_DIR / path
+    if full_path.is_file():
+        return send_from_directory(str(STATIC_DIR), path)
+    if (STATIC_DIR / 'index.html').exists():
+        return send_from_directory(str(STATIC_DIR), 'index.html')
+    return jsonify({"error": "not found"}), 404
 
 @app.route('/api/fetch-games', methods=['GET'])
 def fetch_games():
@@ -38,4 +56,5 @@ def fetch_games():
         return jsonify({"error": "內部伺服器錯誤"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0',port=5000)
+    port = int(os.environ.get('PORT', '5000'))
+    app.run(debug=False, host='0.0.0.0', port=port)
