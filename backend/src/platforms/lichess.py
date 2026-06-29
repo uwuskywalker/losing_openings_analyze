@@ -1,5 +1,6 @@
 import requests
 import json
+import re
 import chess.pgn
 import io
 import psycopg2
@@ -21,29 +22,12 @@ class LichessPlatform(ChessPlatform):
             result = "loss"
 
         created_at = data.get("createdAt", 0)
+        pgn_string = data.get("pgn", "") or ""
+        eco_code = self.get_eco_code(data.get("opening", {}).get("eco"), pgn_string)
+        opening_name = self.get_opening_name(cursor, eco_code, pgn_string)
 
-        pgn_moves_str = ""
-        pgn_string = data.get("pgn")
-
-        if pgn_string:
-            try:
-                pgn_file = io.StringIO(pgn_string)
-                parsed_game = chess.pgn.read_game(pgn_file)
-
-                if parsed_game:
-                    pgn_moves_str = str(parsed_game.mainline())
-            except Exception as pgn_err:
-                print(f"解析 PGN 失敗: {pgn_err}")
-                pgn_moves_str = "棋譜解析錯誤"
-
-        raw_eco = data.get("opening", {}).get("eco")
-        final_eco = raw_eco
-
-        if not final_eco and cursor is not None:
-            final_eco = self.get_opening_name(cursor, None, pgn_moves_str)
-
-        if not final_eco:
-            final_eco = "N/A"
+        if not eco_code and opening_name and opening_name != "未知開局":
+            eco_code = opening_name
 
         return {
             "username": self.username,
@@ -51,17 +35,19 @@ class LichessPlatform(ChessPlatform):
             "date": datetime.fromtimestamp(created_at / 1000).strftime('%Y-%m-%d') if created_at else "N/A",
             "result": result,
             "mode": data.get("speed"),
-            "eco": final_eco,
-            "moves": pgn_moves_str
+            "eco": eco_code or "N/A",
+            "opening_name": opening_name,
+            "moves": pgn_string
         }
 
     def fetch_games(self):
         url = f"https://lichess.org/api/games/user/{self.username}?max=100&pgnInJson=true"
-        response = requests.get(url, headers={'Accept': 'application/x-ndjson'})
+        response = requests.get(url, headers={"Accept": "application/x-ndjson"})
         lines = [line for line in response.text.splitlines() if line.strip()]
         parsed_games = [json.loads(line) for line in lines]
 
         db_cursor = None
+        conn = None
         games_list = []
         blind_spots = []
 
@@ -82,57 +68,60 @@ class LichessPlatform(ChessPlatform):
         except Exception as db_err:
             print(f"資料庫連線失敗: {db_err}")
 
-        games_list = [self._parse(game_data, db_cursor) for game_data in parsed_games]
+        try:
+            games_list = [self._parse(game_data, db_cursor) for game_data in parsed_games]
 
-        loss_ecos = [g["eco"] for g in games_list if g["result"] == "loss" and g.get("eco")]
-        eco_counts = Counter(loss_ecos)
-        top_5_ecos = eco_counts.most_common(5)
+            loss_openings = [g["opening_name"] for g in games_list if g["result"] == "loss" and g.get("opening_name")]
+            if not loss_openings:
+                loss_openings = [g["opening_name"] for g in games_list if g.get("opening_name")]
 
-        if db_cursor is not None:
-            try:
-                for eco, count in top_5_ecos:
-                    db_cursor.execute("SELECT name FROM lichess_openings WHERE eco = %s LIMIT 1;", (eco,))
-                    result = db_cursor.fetchone()
-                    opening_name = result[0] if result else "未知開局"
+            opening_counts = Counter(loss_openings)
+            for name, count in opening_counts.most_common(5):
+                eco_code = "N/A"
+                for game in games_list:
+                    if game.get("opening_name") == name and game.get("eco") not in (None, "N/A"):
+                        eco_code = game.get("eco")
+                        break
 
-                    blind_spots.append({
-                        "eco": eco,
-                        "opening_name": opening_name,
-                        "loss_count": count
-                    })
-
+                blind_spots.append({
+                    "eco": eco_code,
+                    "opening_name": name,
+                    "loss_count": count
+                })
+        finally:
+            if db_cursor is not None:
                 db_cursor.close()
-            except Exception as db_err:
-                print(f"資料庫查詢失敗: {db_err}")
-                blind_spots = [{"eco": eco, "opening_name": "資料庫查詢失敗", "loss_count": count} for eco, count in top_5_ecos]
-        else:
-            blind_spots = [{"eco": eco, "opening_name": "資料庫連線失敗", "loss_count": count} for eco, count in top_5_ecos]
+            if conn is not None:
+                conn.close()
 
         return {
             "player_info": {
                 "username": self.username,
                 "total_games_analyzed": len(games_list),
-                "total_losses": len(loss_ecos)
+                "total_losses": len([g for g in games_list if g["result"] == "loss"])
             },
             "recent_games": games_list,
             "top_blind_spots": blind_spots
         }
 
-    def get_opening_name(self, cursor, eco, moves_str):
+    def get_opening_name(self, cursor, eco, pgn_str):
+        if cursor is None:
+            return "未知開局"
+
         if eco and eco != "N/A":
             try:
-                cursor.execute("SELECT name FROM lichess_openings WHERE eco = %s LIMIT 1;", (eco.upper(),))
+                cursor.execute("SELECT name FROM lichess_openings WHERE eco = %s LIMIT 1;", (str(eco).upper(),))
                 result = cursor.fetchone()
                 if result:
                     return result[0]
             except Exception:
                 pass
 
-        if moves_str and isinstance(moves_str, str) and len(moves_str) > 0:
+        if pgn_str:
             try:
-                parts = moves_str.split()
-                if parts:
-                    prefix_moves = " ".join(parts[:6])
+                moves = self._extract_move_sequence(pgn_str)
+                if moves:
+                    prefix_moves = " ".join(moves[:6])
                     cursor.execute("SELECT name FROM lichess_openings WHERE pgn LIKE %s LIMIT 1;", (f"{prefix_moves}%",))
                     result = cursor.fetchone()
                     if result:
@@ -141,3 +130,40 @@ class LichessPlatform(ChessPlatform):
                 print(f"PGN 查詢過程中發生錯誤: {e}")
 
         return "未知開局"
+
+    def get_eco_code(self, raw_eco, pgn_str):
+        if raw_eco:
+            raw_eco_str = str(raw_eco).strip()
+            if raw_eco_str.startswith("http"):
+                return self._extract_eco_from_pgn(pgn_str)
+            return raw_eco_str.upper()
+
+        return self._extract_eco_from_pgn(pgn_str)
+
+    def _extract_eco_from_pgn(self, pgn_str):
+        if not pgn_str:
+            return None
+
+        match = re.search(r'\[ECO\s+"([A-Z][0-9]{2})"\]', pgn_str)
+        return match.group(1).upper() if match else None
+
+    def _extract_move_sequence(self, pgn_str):
+        if not pgn_str:
+            return []
+
+        try:
+            pgn_io = io.StringIO(pgn_str)
+            game = chess.pgn.read_game(pgn_io)
+            if not game:
+                return []
+
+            moves = []
+            node = game
+            while node.variations:
+                node = node.variations[0]
+                moves.append(node.san())
+            return moves
+        except Exception:
+            clean_pgn = re.sub(r'\[.*?\]', '', pgn_str)
+            clean_pgn = re.sub(r'\d+\.', '', pgn_str)
+            return re.findall(r'[a-zA-Z0-9+#]+', clean_pgn)
