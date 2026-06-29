@@ -17,6 +17,7 @@ interface ApiResponse {
 export function MatchHistory({ username, source }: { username: string, source: string }) {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -65,7 +66,12 @@ export function MatchHistory({ username, source }: { username: string, source: s
           </thead>
           <tbody>
             {data?.recent_games?.map((game, index) => (
-              <tr key={index} className={game.result === 'win' ? 'result-win' : (game.result === 'loss' ? 'result-loss' : 'result-draw')}>
+              <tr 
+                key={index} 
+                className={`${game.result === 'win' ? 'result-win' : (game.result === 'loss' ? 'result-loss' : 'result-draw')} ${expandedIndex === index ? 'expanded' : ''}`}
+                onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
+                style={{ cursor: 'pointer' }}
+              >
                 <td className="col-date">{game.date}</td>
                 <td className="col-mode">{game.mode}</td>
                 <td className="col-eco" title={`${game.eco || 'N/A'} - ${game.opening_name || '未知開局'}`}>

@@ -167,6 +167,15 @@ h3 {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	transition: white-space 200ms ease, overflow 200ms ease;
+}
+.games-table tbody tr.expanded td {
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+}
+.games-table tbody tr {
+	transition: height 200ms ease, background-color 200ms ease;
 }
 .games-table tbody tr:nth-child(odd) {
 	background: rgba(255,255,255,0.01);
@@ -178,6 +187,11 @@ h3 {
 .col-date { width: 120px; }
 .col-mode { width: 100px; }
 .col-result { width: 80px; text-transform: capitalize; }
+
+.games-table tbody tr.expanded {
+	background: rgba(79, 156, 255, 0.1) !important;
+	box-shadow: inset 0 0 12px rgba(79, 156, 255, 0.15);
+}
 
 .result-win { color: #7fe57f; }
 .result-loss { color: #ff7f7f; }
