@@ -9,6 +9,20 @@ from platforms.chess_com import ChessComPlatform
 
 
 class ChessComPlatformTests(unittest.TestCase):
+    def test_parse_treats_draw_results_as_draw(self):
+        platform = ChessComPlatform('testuser')
+        game_data = {
+            'end_time': 1710000000,
+            'white': {'username': 'testuser', 'rating': 1200},
+            'black': {'username': 'other', 'rating': 1300},
+            'pgn': '[Event "Live Chess"]\n[Site "Chess.com"]\n[Date "2024.03.08"]\n[Round "-"]\n[White "testuser"]\n[Black "other"]\n[Result "1/2-1/2"]\n1. e4 e5 1/2-1/2',
+            'time_class': 'rapid'
+        }
+
+        parsed = platform._parse(game_data, None)
+
+        self.assertEqual(parsed['result'], 'draw')
+
     def test_fetch_games_returns_opening_details_for_frontend(self):
         platform = ChessComPlatform('testuser')
 
