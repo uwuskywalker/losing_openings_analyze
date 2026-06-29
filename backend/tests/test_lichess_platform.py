@@ -9,6 +9,24 @@ from platforms.lichess import LichessPlatform
 
 
 class LichessPlatformTests(unittest.TestCase):
+    def test_parse_uses_api_opening_name_when_available(self):
+        platform = LichessPlatform('testuser')
+        game_data = {
+            'players': {
+                'white': {'user': {'id': 'testuser'}, 'rating': 1200},
+                'black': {'user': {'id': 'other'}, 'rating': 1300},
+            },
+            'winner': None,
+            'createdAt': 1710000000,
+            'pgn': '[Event "Live Chess"]\n[ECO "B20"]\n1. e4 c5 2. Nf3 d6',
+            'opening': {'eco': 'B20', 'name': 'Sicilian Defense'}
+        }
+
+        cursor = Mock()
+        parsed = platform._parse(game_data, cursor)
+
+        self.assertEqual(parsed['opening_name'], 'Sicilian Defense')
+
     def test_fetch_games_uses_cursor_after_db_connection(self):
         platform = LichessPlatform('testuser')
 

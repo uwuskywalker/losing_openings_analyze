@@ -23,6 +23,27 @@ class ChessComPlatformTests(unittest.TestCase):
 
         self.assertEqual(parsed['result'], 'draw')
 
+    def test_get_opening_name_prefers_move_sequence_match(self):
+        platform = ChessComPlatform('testuser')
+        cursor = Mock()
+        cursor.fetchall.return_value = [('Sicilian Defense', '1. e4 c5 2. Nf3 d6')]
+
+        result = platform.get_opening_name(cursor, 'B20', '[ECO "B20"]\n1. e4 c5 2. Nf3 d6')
+
+        self.assertEqual(result, 'Sicilian Defense')
+
+    def test_get_opening_name_prefers_general_opening_when_moves_match_earlier(self):
+        platform = ChessComPlatform('testuser')
+        cursor = Mock()
+        cursor.fetchall.return_value = [
+            ('Australian Defense', 'd4 g6 c4 Bg7 Nf3 d6 e4 e5'),
+            ("Queen's Pawn Game: Modern Defense", 'd4 g6 c4 Bg7 Nf3 d6')
+        ]
+
+        result = platform.get_opening_name(cursor, 'A40', '[ECO "A40"]\n1. d4 g6 2. c4 Bg7 3. Nf3 d6 4. e4 e5 5. dxe5 dxe5 6. Qxd8+ Kxd8 7. Nc3 Nc6')
+
+        self.assertEqual(result, "Queen's Pawn Game: Modern Defense")
+
     def test_fetch_games_returns_opening_details_for_frontend(self):
         platform = ChessComPlatform('testuser')
 

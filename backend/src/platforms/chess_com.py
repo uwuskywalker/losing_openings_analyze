@@ -91,18 +91,92 @@ class ChessComPlatform(ChessPlatform):
             return match.group(1).upper()
         return None
 
+    def _normalize_opening_text(self, text):
+        if not text:
+            return ""
+        text = str(text).lower()
+        text = re.sub(r'\[.*?\]', ' ', text)
+        text = re.sub(r'\d+\.', ' ', text)
+        text = re.sub(r'[^a-z0-9]+', ' ', text).strip()
+        return text
+
+    def _score_opening_candidate(self, actual_moves, candidate_moves, prefix_length=6):
+        actual_tokens = self._normalize_opening_text(actual_moves).split()
+        candidate_tokens = self._normalize_opening_text(candidate_moves).split()
+        if not actual_tokens or not candidate_tokens:
+            return (-1, -1, -1, -1)
+
+        def matched_count(limit):
+            matched = 0
+            for index in range(min(limit, len(actual_tokens), len(candidate_tokens))):
+                if actual_tokens[index] == candidate_tokens[index]:
+                    matched += 1
+                else:
+                    break
+            return matched
+
+        primary_matches = matched_count(4)
+        secondary_matches = matched_count(min(6, prefix_length))
+        tertiary_matches = matched_count(prefix_length)
+        return (primary_matches, secondary_matches, tertiary_matches, -len(candidate_tokens))
+
+    def _get_opening_candidates(self, cursor, eco):
+        if cursor is None or not eco or eco == "N/A":
+            return []
+
+        try:
+            cursor.execute("SELECT name, pgn FROM lichess_openings WHERE eco = %s;", (str(eco).upper(),))
+            rows = cursor.fetchall()
+            if rows:
+                return list(rows)
+        except Exception:
+            pass
+
+        try:
+            cursor.execute("SELECT name FROM lichess_openings WHERE eco = %s LIMIT 1;", (str(eco).upper(),))
+            result = cursor.fetchone()
+            if result:
+                return [(result[0], "")]
+        except Exception:
+            pass
+
+        return []
+
     def get_opening_name(self, cursor, eco, pgn_str):
         if cursor is None:
             return "未知開局"
 
-        if eco and eco != "N/A":
-            try:
-                cursor.execute("SELECT name FROM lichess_openings WHERE eco = %s LIMIT 1;", (str(eco).upper(),))
-                result = cursor.fetchone()
-                if result:
-                    return result[0]
-            except Exception:
-                pass
+        candidates = self._get_opening_candidates(cursor, eco)
+        if candidates:
+            if pgn_str:
+                moves = self._extract_move_sequence(pgn_str)
+                prefix_moves = " ".join(moves[:14]).strip()
+                if prefix_moves:
+                    best_name = None
+                    best_score = None
+
+                    for prefix_length in [6, 8, 10, 12, 14, 4, 2]:
+                        prefix_slice = " ".join(moves[:prefix_length]).strip()
+                        if not prefix_slice:
+                            continue
+
+                        best_name = None
+                        best_score = None
+                        for name, opening_pgn in candidates:
+                            score = self._score_opening_candidate(prefix_slice, opening_pgn, prefix_length)
+                            if not best_score or score > best_score:
+                                best_score = score
+                                best_name = name
+
+                        if best_name and best_score and best_score[0] > 0:
+                            return best_name
+
+                    if best_name:
+                        return best_name
+
+            first_name = candidates[0][0] if candidates[0] else None
+            if first_name:
+                return first_name
 
         if pgn_str:
             moves = self._extract_move_sequence(pgn_str)
