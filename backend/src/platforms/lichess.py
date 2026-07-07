@@ -119,7 +119,7 @@ class LichessPlatform(ChessPlatform):
             loss_openings = [g["opening_name"] for g in games_list if g.get("opening_name")]
 
         opening_counts = Counter(loss_openings)
-        for name, count in opening_counts.most_common(5):
+        for name, count in opening_counts.most_common():
             eco_code = "N/A"
             for game in games_list:
                 if game.get("opening_name") == name and game.get("eco") not in (None, "N/A"):

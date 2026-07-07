@@ -282,7 +282,7 @@ class ChessComPlatform(ChessPlatform):
 
         opening_counts = Counter(loss_openings)
         top_blind_spots = []
-        for name, count in opening_counts.most_common(5):
+        for name, count in opening_counts.most_common():
             eco = "N/A"
             for game in games_list:
                 if game.get("opening_name") == name and game.get("result") == "loss" and game.get("eco") not in (None, "N/A"):
