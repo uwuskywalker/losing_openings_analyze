@@ -1,13 +1,22 @@
+import hashlib
 import requests
 import json
 import re
 import chess.pgn
 import io
-import psycopg2
 import os
 from datetime import datetime
 from collections import Counter
-from .base import ChessPlatform
+
+try:
+    from .base import ChessPlatform
+except ImportError:
+    from base import ChessPlatform
+
+try:
+    from db import get_db_connection, ensure_game_analysis_table, save_game_analysis, fetch_stored_games
+except ImportError:
+    from ..db import get_db_connection, ensure_game_analysis_table, save_game_analysis, fetch_stored_games
 
 class LichessPlatform(ChessPlatform):
     def _parse(self, data, cursor=None):
@@ -30,10 +39,15 @@ class LichessPlatform(ChessPlatform):
         if not eco_code and opening_name and opening_name != "未知開局":
             eco_code = opening_name
 
+        played_at = datetime.fromtimestamp(created_at / 1000).date() if created_at else None
+
         return {
+            "source": "lichess",
             "username": self.username,
+            "game_id": self._get_game_id(data),
+            "played_at": played_at,
             "rating": data.get("players", {}).get(player_color, {}).get("rating"),
-            "date": datetime.fromtimestamp(created_at / 1000).strftime('%Y-%m-%d') if created_at else "N/A",
+            "date": played_at.isoformat() if played_at else "N/A",
             "result": result,
             "mode": data.get("speed"),
             "eco": eco_code or "N/A",
@@ -41,59 +55,61 @@ class LichessPlatform(ChessPlatform):
             "moves": pgn_string
         }
 
+    def _get_game_id(self, data):
+        if not data:
+            return None
+        game_id = data.get('id') or data.get('game_id') or data.get('url') or data.get('uuid')
+        if game_id:
+            return str(game_id)
+        pgn_str = data.get('pgn', '')
+        return hashlib.sha1(pgn_str.encode('utf-8')).hexdigest() if pgn_str else None
+
     def fetch_games(self):
         url = f"https://lichess.org/api/games/user/{self.username}?max=100&pgnInJson=true"
         response = requests.get(url, headers={"Accept": "application/x-ndjson"})
         lines = [line for line in response.text.splitlines() if line.strip()]
         parsed_games = [json.loads(line) for line in lines]
 
-        db_cursor = None
         conn = None
+        cursor = None
         games_list = []
         blind_spots = []
 
         try:
-            db_port = os.getenv("DB_PORT", "5432")
-            if db_port and db_port.startswith("="):
-                db_port = db_port[1:]
-            port = int(db_port) if str(db_port).isdigit() else 5432
+            conn = get_db_connection()
+            ensure_game_analysis_table(conn)
+            cursor = conn.cursor()
 
-            conn = psycopg2.connect(
-                dbname=os.getenv("DB_NAME"),
-                user=os.getenv("DB_USER"),
-                password=os.getenv("DB_PASSWORD"),
-                host=os.getenv("DB_HOST"),
-                port=port
-            )
-            db_cursor = conn.cursor()
+            games_list = [self._parse(game_data, cursor) for game_data in parsed_games]
+            save_game_analysis(conn, games_list)
+            games_list = fetch_stored_games(conn, 'lichess', self.username)
         except Exception as db_err:
-            print(f"資料庫連線失敗: {db_err}")
-
-        try:
-            games_list = [self._parse(game_data, db_cursor) for game_data in parsed_games]
-
-            loss_openings = [g["opening_name"] for g in games_list if g["result"] == "loss" and g.get("opening_name")]
-            if not loss_openings:
-                loss_openings = [g["opening_name"] for g in games_list if g.get("opening_name")]
-
-            opening_counts = Counter(loss_openings)
-            for name, count in opening_counts.most_common(5):
-                eco_code = "N/A"
-                for game in games_list:
-                    if game.get("opening_name") == name and game.get("eco") not in (None, "N/A"):
-                        eco_code = game.get("eco")
-                        break
-
-                blind_spots.append({
-                    "eco": eco_code,
-                    "opening_name": name,
-                    "loss_count": count
-                })
+            print(f"資料庫處理失敗: {db_err}")
+            if not games_list:
+                games_list = [self._parse(game_data, None) for game_data in parsed_games]
         finally:
-            if db_cursor is not None:
-                db_cursor.close()
+            if cursor is not None:
+                cursor.close()
             if conn is not None:
                 conn.close()
+
+        loss_openings = [g["opening_name"] for g in games_list if g["result"] == "loss" and g.get("opening_name")]
+        if not loss_openings:
+            loss_openings = [g["opening_name"] for g in games_list if g.get("opening_name")]
+
+        opening_counts = Counter(loss_openings)
+        for name, count in opening_counts.most_common(5):
+            eco_code = "N/A"
+            for game in games_list:
+                if game.get("opening_name") == name and game.get("eco") not in (None, "N/A"):
+                    eco_code = game.get("eco")
+                    break
+
+            blind_spots.append({
+                "eco": eco_code,
+                "opening_name": name,
+                "loss_count": count
+            })
 
         return {
             "player_info": {

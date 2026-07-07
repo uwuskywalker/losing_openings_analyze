@@ -37,6 +37,7 @@ class LichessPlatformTests(unittest.TestCase):
              patch('psycopg2.connect') as mock_connect:
             mock_cursor = Mock()
             mock_cursor.fetchone.return_value = ('Sicilian Defense',)
+            mock_cursor.fetchall.return_value = [('game123', None, 1200, 'loss', 'rapid', 'B20', 'Sicilian Defense', '1. e4 e5 2. Nf3 Nc6')]
             mock_connect.return_value.cursor.return_value = mock_cursor
 
             result = platform.fetch_games()

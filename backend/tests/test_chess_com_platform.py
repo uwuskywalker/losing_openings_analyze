@@ -68,6 +68,7 @@ class ChessComPlatformTests(unittest.TestCase):
              patch('psycopg2.connect') as mock_connect:
             mock_cursor = Mock()
             mock_cursor.fetchone.return_value = ('Sicilian Defense',)
+            mock_cursor.fetchall.return_value = [('Sicilian Defense', '1. e4 c5 2. Nf3 d6')]
             mock_connect.return_value.cursor.return_value = mock_cursor
 
             result = platform.fetch_games()

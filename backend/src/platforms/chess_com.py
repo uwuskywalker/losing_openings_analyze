@@ -1,7 +1,7 @@
+import hashlib
 import io
 import os
 import re
-import psycopg2
 import requests
 import chess.pgn
 from collections import Counter
@@ -9,8 +9,13 @@ from datetime import datetime
 
 try:
     from .base import ChessPlatform
-except ImportError:  # pragma: no cover - 支援直接執行檔案
+except ImportError:
     from base import ChessPlatform
+
+try:
+    from db import get_db_connection, ensure_game_analysis_table, save_game_analysis, fetch_stored_games
+except ImportError:
+    from ..db import get_db_connection, ensure_game_analysis_table, save_game_analysis, fetch_stored_games
 
 
 class ChessComPlatform(ChessPlatform):
@@ -59,11 +64,15 @@ class ChessComPlatform(ChessPlatform):
             result = "loss"
 
         opening_name = self.get_opening_name(cursor, eco_code, pgn_str)
+        played_at = datetime.fromtimestamp(end_time).date() if end_time else None
 
         return {
+            "source": "chess.com",
             "username": self.username,
+            "game_id": self._get_game_id(data),
+            "played_at": played_at,
             "rating": player_data.get("rating"),
-            "date": datetime.fromtimestamp(end_time).strftime('%Y-%m-%d') if end_time else "N/A",
+            "date": played_at.isoformat() if played_at else "N/A",
             "result": result,
             "mode": data.get("time_class"),
             "eco": eco_code or "N/A",
@@ -216,6 +225,15 @@ class ChessComPlatform(ChessPlatform):
             clean_pgn = re.sub(r'\d+\.', '', clean_pgn)
             return re.findall(r'[a-zA-Z0-9+#]+', clean_pgn)
 
+    def _get_game_id(self, data):
+        if not data:
+            return None
+        game_id = data.get('url') or data.get('game_id') or data.get('id') or data.get('uuid')
+        if game_id:
+            return str(game_id)
+        pgn_str = data.get('pgn', '')
+        return hashlib.sha1(pgn_str.encode('utf-8')).hexdigest() if pgn_str else None
+
     def fetch_games(self):
         archives_url = f"https://api.chess.com/pub/player/{self.username}/games/archives"
         try:
@@ -230,26 +248,27 @@ class ChessComPlatform(ChessPlatform):
             print(f"Chess.com API 請求失敗: {e}")
             return {"player_info": {}, "recent_games": [], "top_blind_spots": []}
 
-        cursor = None
         conn = None
+        cursor = None
+        games_list = []
+
         try:
-            db_port = os.getenv("DB_PORT", "5432")
-            if str(db_port).startswith("="):
-                db_port = db_port[1:]
-            port = int(db_port) if str(db_port).isdigit() else 5432
-
-            conn = psycopg2.connect(
-                dbname=os.getenv("DB_NAME"),
-                user=os.getenv("DB_USER"),
-                password=os.getenv("DB_PASSWORD"),
-                host=os.getenv("DB_HOST"),
-                port=port,
-            )
+            conn = get_db_connection()
+            ensure_game_analysis_table(conn)
             cursor = conn.cursor()
-        except Exception as db_err:
-            print(f"資料庫連線失敗: {db_err}")
 
-        games_list = [self._parse(g, cursor) for g in all_games[::-1]]
+            games_list = [self._parse(game_data, cursor) for game_data in all_games[::-1]]
+            save_game_analysis(conn, games_list)
+            games_list = fetch_stored_games(conn, 'chess.com', self.username)
+        except Exception as db_err:
+            print(f"資料庫處理失敗: {db_err}")
+            if not games_list:
+                games_list = [self._parse(game_data, None) for game_data in all_games[::-1]]
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
 
         loss_openings = [g["opening_name"] for g in games_list if g["result"] == "loss" and g.get("opening_name")]
         if not loss_openings:
@@ -265,13 +284,8 @@ class ChessComPlatform(ChessPlatform):
                     break
             top_blind_spots.append({"eco": eco, "opening_name": name, "loss_count": count})
 
-        if cursor is not None:
-            cursor.close()
-        if conn is not None:
-            conn.close()
-
         return {
-            "player_info": {"username": self.username, "total_games_analyzed": len(games_list)},
+            "player_info": {"username": self.username, "total_games_analyzed": len(games_list), "total_losses": len([g for g in games_list if g["result"] == "loss"])},
             "recent_games": games_list,
             "top_blind_spots": top_blind_spots,
         }
