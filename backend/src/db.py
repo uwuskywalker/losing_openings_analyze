@@ -114,16 +114,8 @@ def fetch_stored_games(conn, source, username, limit=100):
             (source, username, limit),
         )
         rows = cursor.fetchall()
-        results = []
-        for row in rows:
-            eco_val = row[5]
-            opening_name = row[6]
-            if opening_name and opening_name != '未知開局':
-                eco_out = opening_name
-            else:
-                eco_out = eco_val
-
-            results.append({
+        return [
+            {
                 'source': source,
                 'username': username,
                 'game_id': row[0],
@@ -132,11 +124,11 @@ def fetch_stored_games(conn, source, username, limit=100):
                 'rating': row[2],
                 'result': row[3],
                 'mode': row[4],
-                'eco': eco_out,
-                'opening_name': opening_name,
+                'eco': row[5],
+                'opening_name': row[6],
                 'moves': row[7],
-            })
-
-        return results
+            }
+            for row in rows
+        ]
     finally:
         cursor.close()

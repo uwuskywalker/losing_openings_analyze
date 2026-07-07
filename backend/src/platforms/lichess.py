@@ -36,9 +36,6 @@ class LichessPlatform(ChessPlatform):
         eco_code = self.get_eco_code(opening_data.get("eco"), pgn_string)
         opening_name = opening_data.get("name") or self.get_opening_name(cursor, eco_code, pgn_string)
 
-        if not eco_code and opening_name and opening_name != "未知開局":
-            eco_code = opening_name
-
         played_at = datetime.fromtimestamp(created_at / 1000).date() if created_at else None
 
         return {

@@ -43,7 +43,7 @@ class LichessPlatformTests(unittest.TestCase):
             result = platform.fetch_games()
 
             self.assertEqual(result['player_info']['username'], 'testuser')
-            self.assertEqual(result['recent_games'][0]['eco'], 'Sicilian Defense')
+            self.assertEqual(result['recent_games'][0]['eco'], 'B20')
             self.assertEqual(result['top_blind_spots'][0]['opening_name'], 'Sicilian Defense')
 
 
