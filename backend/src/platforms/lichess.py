@@ -19,19 +19,43 @@ except ImportError:
     from ..db import get_db_connection, ensure_game_analysis_table, save_game_analysis, fetch_stored_games
 
 class LichessPlatform(ChessPlatform):
+    def _normalize_result(self, raw_result, player_color=None, pgn_str=None):
+        if raw_result is None:
+            return "draw"
+        if isinstance(raw_result, str):
+            raw_result = raw_result.strip().lower()
+
+        if raw_result in {"win", "won", "white", "1-0", "w"}:
+            return "win" if player_color == "white" else "loss"
+        if raw_result in {"draw", "drawn", "1/2-1/2", "agreed", "stalemate", "repetition", "insufficient", "fifty-move", "seventy-five-move", "half-point"}:
+            return "draw"
+        if raw_result in {"loss", "lose", "lost", "black", "0-1", "l"}:
+            return "loss" if player_color == "white" else "win"
+
+        if pgn_str:
+            match = re.search(r'\[Result\s+"([^"]+)"\]', pgn_str)
+            if match:
+                return self._normalize_result(match.group(1), player_color, None)
+            if "1/2-1/2" in pgn_str:
+                return "draw"
+            if "1-0" in pgn_str:
+                return "win" if player_color == "white" else "loss"
+            if "0-1" in pgn_str:
+                return "win" if player_color == "black" else "loss"
+
+        return "draw"
+
     def _parse(self, data, cursor=None):
         winner = data.get("winner")
         player_color = "white" if data.get("players", {}).get("white", {}).get("user", {}).get("id") == self.username.lower() else "black"
 
+        pgn_string = data.get("pgn", "") or ""
         if winner is None:
-            result = "draw"
-        elif winner == player_color:
-            result = "win"
+            result = self._normalize_result(None, player_color, pgn_string)
         else:
-            result = "loss"
+            result = self._normalize_result(winner, player_color, pgn_string)
 
         created_at = data.get("createdAt", 0)
-        pgn_string = data.get("pgn", "") or ""
         opening_data = data.get("opening") or {}
         eco_code = self.get_eco_code(opening_data.get("eco"), pgn_string)
         opening_name = opening_data.get("name") or self.get_opening_name(cursor, eco_code, pgn_string)

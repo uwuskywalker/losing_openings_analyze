@@ -21,30 +21,36 @@ except ImportError:
 class ChessComPlatform(ChessPlatform):
     HEADERS = {'User-Agent': 'ChessFetcherApp'}
 
-    def _normalize_result(self, raw_result, pgn_str=None):
+    def _normalize_result(self, raw_result, pgn_str=None, user_color=None):
         if raw_result is None:
             raw_result = None
         elif isinstance(raw_result, str):
             raw_result = raw_result.strip().lower()
 
-        if raw_result in {"win", "won", "white", "1-0", "w"}:
-            return "win"
-        if raw_result in {"draw", "drawn", "1/2-1/2", "agreed", "stalemate", "repetition", "insufficient", "fifty-move", "seventy-five-move", "half-point"}:
+        if raw_result in {"win", "won", "w"}:
+            return "win" if user_color != "black" else "loss"
+        if raw_result in {"draw", "drawn", "agreed", "stalemate", "repetition", "insufficient", "fifty-move", "seventy-five-move", "half-point"}:
             return "draw"
-        if raw_result in {"loss", "lose", "lost", "black", "0-1", "l"}:
-            return "loss"
+        if raw_result in {"loss", "lose", "lost", "l"}:
+            return "loss" if user_color != "black" else "win"
+        if raw_result in {"white", "1-0"}:
+            return "win" if user_color == "white" else "loss"
+        if raw_result in {"black", "0-1"}:
+            return "win" if user_color == "black" else "loss"
+        if raw_result in {"1/2-1/2"}:
+            return "draw"
 
         if pgn_str:
             match = re.search(r'\[Result\s+"([^"]+)"\]', pgn_str)
             if match:
-                return self._normalize_result(match.group(1), None)
+                return self._normalize_result(match.group(1), None, user_color)
 
             if "1/2-1/2" in pgn_str:
                 return "draw"
             if "1-0" in pgn_str:
-                return "win"
+                return "win" if user_color == "white" else "loss"
             if "0-1" in pgn_str:
-                return "loss"
+                return "win" if user_color == "black" else "loss"
 
         return None
 
@@ -59,7 +65,7 @@ class ChessComPlatform(ChessPlatform):
         if raw_result is None:
             raw_result = data.get("result")
 
-        result = self._normalize_result(raw_result, pgn_str)
+        result = self._normalize_result(raw_result, pgn_str, user_color)
         if result is None:
             result = "loss"
 

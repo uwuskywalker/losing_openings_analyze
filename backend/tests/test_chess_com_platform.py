@@ -23,6 +23,21 @@ class ChessComPlatformTests(unittest.TestCase):
 
         self.assertEqual(parsed['result'], 'draw')
 
+    def test_parse_uses_player_color_for_game_result(self):
+        platform = ChessComPlatform('testuser')
+        game_data = {
+            'end_time': 1710000000,
+            'white': {'username': 'other', 'rating': 1200},
+            'black': {'username': 'testuser', 'rating': 1300},
+            'pgn': '[Event "Live Chess"]\n[Result "1-0"]\n1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0',
+            'result': '1-0',
+            'time_class': 'rapid'
+        }
+
+        parsed = platform._parse(game_data, None)
+
+        self.assertEqual(parsed['result'], 'loss')
+
     def test_get_opening_name_prefers_move_sequence_match(self):
         platform = ChessComPlatform('testuser')
         cursor = Mock()

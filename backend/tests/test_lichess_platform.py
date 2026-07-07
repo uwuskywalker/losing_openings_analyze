@@ -27,6 +27,22 @@ class LichessPlatformTests(unittest.TestCase):
 
         self.assertEqual(parsed['opening_name'], 'Sicilian Defense')
 
+    def test_parse_uses_player_color_for_result(self):
+        platform = LichessPlatform('testuser')
+        game_data = {
+            'players': {
+                'white': {'user': {'id': 'other'}, 'rating': 1200},
+                'black': {'user': {'id': 'testuser'}, 'rating': 1300},
+            },
+            'winner': 'white',
+            'createdAt': 1710000000,
+            'pgn': '[Event "Live Chess"]\n[Result "1-0"]\n1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0'
+        }
+
+        parsed = platform._parse(game_data, None)
+
+        self.assertEqual(parsed['result'], 'loss')
+
     def test_fetch_games_uses_cursor_after_db_connection(self):
         platform = LichessPlatform('testuser')
 
