@@ -147,6 +147,25 @@ h3 {
 	margin-left: 6px;
 }
 
+.expand-btn {
+	display: inline-block;
+	margin-top: 12px;
+	padding: 8px 16px;
+	border: 1px solid rgba(255,255,255,0.2);
+	border-radius: 8px;
+	background: rgba(79, 156, 255, 0.1);
+	color: #9ad1ff;
+	font-size: 0.9rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 180ms ease;
+}
+.expand-btn:hover {
+	background: rgba(79, 156, 255, 0.2);
+	border-color: rgba(79, 156, 255, 0.4);
+	transform: translateY(-1px);
+}
+
 .games-table {
 	width: 100%;
 	border-collapse: collapse;

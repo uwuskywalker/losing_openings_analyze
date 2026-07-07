@@ -18,6 +18,7 @@ export function MatchHistory({ username, source }: { username: string, source: s
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [showAllBlindSpots, setShowAllBlindSpots] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -46,7 +47,7 @@ export function MatchHistory({ username, source }: { username: string, source: s
       <section className="card blindspot-card">
         <h3>常輸開局分析</h3>
         <ul className="blindspots">
-          {data?.top_blind_spots?.map((spot, index) => (
+          {data?.top_blind_spots?.slice(0, showAllBlindSpots ? undefined : 5).map((spot, index) => (
             <li key={index} className="blindspot-item">
               <span className="eco">{spot.eco}</span>
               <span className="sep"> - </span>
@@ -55,6 +56,14 @@ export function MatchHistory({ username, source }: { username: string, source: s
             </li>
           ))}
         </ul>
+        {data?.top_blind_spots && data.top_blind_spots.length > 5 && (
+          <button 
+            className="expand-btn"
+            onClick={() => setShowAllBlindSpots(!showAllBlindSpots)}
+          >
+            {showAllBlindSpots ? '收起' : `展開全部 (共 ${data.top_blind_spots.length} 個)`}
+          </button>
+        )}
       </section>
 
       {/* 3. 顯示對局列表 */}
